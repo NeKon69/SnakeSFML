@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /SnakeSFML.vcxproj.filters
 /SnakeSFML.vcxproj
+*.dll

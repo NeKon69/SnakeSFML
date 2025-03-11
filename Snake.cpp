@@ -83,19 +83,12 @@ public:
                 snakeData[0].coords.y -= 10;
         }
 
-        for (int i = 1; i < snakeData.get_size(); ++i) {
+        for (int i = snakeData.get_size() - 1; i > 0; --i) {
             if (i == 1)
                 snakeData[1].coords = prevCoords;
             else
-                snakeData[i].coords = snakeData[i + 1].coords;
+                snakeData[i].coords = snakeData[i - 1].coords;
         }
-
-        prevCoords = snakeData[0].coords;
-        std::cout << "------------------COORDS------------------" << "\n";
-        for (int i = 0; i < snakeData.get_size(); ++i) {
-            std::cout << i + 1 << ": " << snakeData[i].coords.x << "    " << snakeData[i].coords.y << std::endl;
-        }
-        std::cout << "prev_coords" << ": " << prevCoords.x << "    " << prevCoords.y << "\n";
     }
 
     void add_snake() {
@@ -122,20 +115,27 @@ public:
         }
     }
 
-    void update(sf::Time deltaTime) {
+    bool update(sf::Time deltaTime) {
         static sf::Time elapsedTime;
         elapsedTime += deltaTime;
 
         if (elapsedTime.asMilliseconds() > 100) {
-            if(checkCollision())
-				std::cout << "Game over!" << std::endl;
+            if (checkCollision()) {
+                std::cout << "Game over!" << std::endl;
+                return false;
+            }
+
+
             move();
             if (snakeData[0].coords == foodCoords) {
                 add_snake();
                 generateApple();
             }
             elapsedTime = sf::Time::Zero;
+            return true;
         }
+        else
+            return true;
     }
 
     bool checkCollision() {
@@ -171,7 +171,8 @@ int main() {
 				}
 			}
 		}
-		game.update(clock.restart());
+		if(!(game.update(clock.restart())))
+            window.close();
 		window.clear();
 		window.draw(game);
 		window.display();

@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector_alias.hpp>
 
-class SnakeGame : public sf::Drawable {
+class SnakeGame : public sf::Drawable, public sf::Transformable {
 private:
     struct SnakeSegment {
         sf::Vector2f coords;
@@ -26,11 +26,17 @@ private:
     std::uniform_int_distribution<> xDist;
     std::uniform_int_distribution<> yDist;
 
+    unsigned int score = 0;
+
 public:
     SnakeGame() : gen(rd()), xDist(0, 79), yDist(0, 59) {
         snakeData.reserve(50000);
         snakeData.push_back({ {100, 100}, true });
         generateApple();
+    }
+
+    unsigned int getScore() {
+        return score;
     }
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
@@ -99,6 +105,7 @@ public:
         SnakeSegment snk;
         snk.coords = newCoords;
         snakeData.push_back(snk);
+        ++score;
     }
 
     void generateApple() {
@@ -154,27 +161,175 @@ public:
     }
 };
 
+
+
+
+enum class states {
+    MENU,
+    GAME
+};
+
+
+
+
+class SnakeScreen : public sf::Drawable, public sf::Transformable {
+private:
+    bool beginWind, LeaveWind;
+
+    states st;
+
+    sf::Font LogoFont;
+    sf::Text GameLogo;
+
+    sf::Font ButtonFont;
+    sf::RectangleShape startGameButtonBox;
+    sf::Text startGame;
+
+    sf::RectangleShape leaveGameButtonBox;
+    sf::Text leaveGame;
+
+    unsigned int max_score = 0;
+    sf::Text ScoreText;
+public:
+    SnakeScreen() : LogoFont("C:/Windows/Fonts/arial.ttf"), GameLogo(LogoFont), ButtonFont("C:/Windows/Fonts/arial.ttf"), startGame(ButtonFont), leaveGame(ButtonFont), LeaveWind(false), beginWind(false), ScoreText(ButtonFont) {
+
+		ScoreText.setCharacterSize(20);
+		ScoreText.setPosition({ 20, 20 });
+        ScoreText.setString("Max Score: " + std::to_string(max_score));
+
+        GameLogo.setString("SNAKE GAME");
+        GameLogo.setCharacterSize(50);
+		GameLogo.setPosition({ 250, 100 });
+
+
+        startGameButtonBox.setOrigin({ startGameButtonBox.getSize().x / 2 + 200, startGameButtonBox.getSize().y / 2 });
+        startGameButtonBox.setFillColor(sf::Color::White);
+        startGameButtonBox.setSize({ 400, 100 });
+        startGameButtonBox.setPosition({ 400, 350 });
+        startGame.setString("Start Game");
+		startGame.setPosition({ 325, 375 });
+        startGame.setFillColor(sf::Color::Red);
+
+
+        leaveGameButtonBox.setOrigin({ leaveGameButtonBox.getSize().x / 2 + 200, leaveGameButtonBox.getSize().y / 2 });
+        leaveGameButtonBox.setFillColor(sf::Color::White);
+        leaveGameButtonBox.setSize({ 400, 100 });
+        leaveGameButtonBox.setPosition({ 400, 475 });
+        leaveGame.setString("Exit Game");
+		leaveGame.setPosition({ 325, 500 });
+        leaveGame.setFillColor(sf::Color::Red);
+    }
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+
+		target.draw(ScoreText, states);
+        target.draw(GameLogo, states);
+
+        target.draw(startGameButtonBox, states);
+        target.draw(startGame, states);
+
+        target.draw(leaveGameButtonBox, states);
+        target.draw(leaveGame, states);
+    }
+    void MouseMoved(sf::Vector2i position) {
+        if (startGameButtonBox.getGlobalBounds().contains({float(position.x), float(position.y)})) {
+            beginWind = true;
+            startGameButtonBox.setFillColor(sf::Color::Black);
+        }
+
+        if (!startGameButtonBox.getGlobalBounds().contains({ float(position.x), float(position.y) })) {
+            beginWind = false;
+            startGameButtonBox.setFillColor(sf::Color::White);
+        }
+
+        if (leaveGameButtonBox.getGlobalBounds().contains({ float(position.x), float(position.y) })) {
+            LeaveWind = true;
+            leaveGameButtonBox.setFillColor(sf::Color::Black);
+        }
+
+        if (!leaveGameButtonBox.getGlobalBounds().contains({ float(position.x), float(position.y) })) {
+            LeaveWind = false;
+            leaveGameButtonBox.setFillColor(sf::Color::White);
+        }
+    }
+
+    bool getBeginWind() {
+        return beginWind;
+    }
+	bool getLeaveWind() {
+		return LeaveWind;
+	}
+
+    void MousePressed() {
+        if (beginWind) {
+            SnakeGame game;
+            sf::RenderWindow window(sf::VideoMode({ 800, 600 }), "Snake game");
+            sf::Clock clock;
+			unsigned int score = 0;
+            while (window.isOpen()) {
+                while (const auto event = window.pollEvent()) {
+                    if (event->is<sf::Event::Closed>()) {
+                        window.close();
+                    }
+                    else if (const auto* button = event->getIf<sf::Event::KeyPressed>()) {
+                        if (button->scancode == sf::Keyboard::Scancode::W || button->scancode == sf::Keyboard::Scancode::S || button->scancode == sf::Keyboard::Scancode::A || button->scancode == sf::Keyboard::Scancode::D)
+                            game.move(*button);
+                        else if (button->scancode == sf::Keyboard::Scancode::Escape) {
+                            window.close();
+                        }
+                    }
+                }
+                if (!(game.update(clock.restart()))) {
+					score = game.getScore();
+                    if (score > max_score) {
+                        max_score = score;
+                        ScoreText.setString("Max Score: " + std::to_string(max_score));
+                    }
+                    window.close();
+                }
+                window.clear(sf::Color::Blue);
+                window.draw(game);
+                window.display();
+            }
+        }
+    }
+};
+
+
+
 int main() {
 	sf::RenderWindow window(sf::VideoMode({ 800, 600 }), "Snake game");
-	SnakeGame game;
+	SnakeScreen menu;
 	sf::Clock clock;
+    unsigned int max_score;
+    max_score = 0;
 	while (window.isOpen()) {
 		while (const auto event = window.pollEvent()) {
 			if (event->is<sf::Event::Closed>()) {
 				window.close();
 			}
 			if (const auto* button = event->getIf<sf::Event::KeyPressed>()) {
-				if (button->scancode == sf::Keyboard::Scancode::W || button->scancode == sf::Keyboard::Scancode::S || button->scancode == sf::Keyboard::Scancode::A || button->scancode == sf::Keyboard::Scancode::D)
-					game.move(*button);
-				else if (button->scancode == sf::Keyboard::Scancode::Escape) {
+				if (button->scancode == sf::Keyboard::Scancode::Escape) {
 					window.close();
 				}
 			}
+            else if (const auto* button = event->getIf<sf::Event::MouseMoved>()) {
+                menu.MouseMoved(button->position);
+            }
+            else if (const auto* button = event->getIf<sf::Event::MouseButtonPressed>()) {
+				if (button->button == sf::Mouse::Button::Left) {
+                    if (menu.getLeaveWind()) {
+                        window.close();
+                        break;
+                    }
+                    else if (menu.getBeginWind())
+                        menu.MousePressed();
+				}
+            }
 		}
-		if(!(game.update(clock.restart())))
-            window.close();
-		window.clear();
-		window.draw(game);
+		window.clear(sf::Color::Blue);
+		window.draw(menu);
 		window.display();
 	}
 
